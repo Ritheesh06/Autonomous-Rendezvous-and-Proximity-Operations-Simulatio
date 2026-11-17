@@ -239,6 +239,12 @@ Successful docking events	0
 Recorded abort events	0
 Docking success rate	0%
 
+<img width="1600" height="900" alt="WhatsApp Image 2026-11-17 at 5 30 13 PM" src="https://github.com/user-attachments/assets/01762c7d-6587-4253-a991-fe359ad01e36" />
+<img width="1600" height="900" alt="WhatsApp Image 2026-11-17 at 5 30 13 PM (1)" src="https://github.com/user-attachments/assets/3c50c3da-72d9-441a-a2c9-d6f0c0bcabbf" />
+<img width="1600" height="900" alt="WhatsApp Image 2026-11-17 at 5 30 14 PM" src="https://github.com/user-attachments/assets/8e79b505-60f4-459b-a424-4c98f13a5ad1" />
+
+
+
 
 These results mean that the current run did not demonstrate a successful docking event. Since no abort events were recorded either, the trial-level outcomes need further instrumentation to determine whether trials timed out, failed to converge, or encountered another condition.
 
