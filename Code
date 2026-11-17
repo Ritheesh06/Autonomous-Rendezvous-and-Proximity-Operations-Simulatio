@@ -1,0 +1,150 @@
+clc;
+clear;
+close all;
+
+%% ===============================
+% GLOBAL PARAMETERS
+% ===============================
+n  = 0.0011;      % orbital rate (rad/s) ~ GEO
+dt = 1;           % timestep (s)
+T  = 2500;        % total sim time (s)
+N  = T/dt;
+
+Kp = 0.001;
+Kd = 0.15;
+
+KOZ_radius      = 10;     % keep-out zone radius (m)
+abort_vel_limit = 0.2;    % abort trigger velocity (m/s)
+dock_dist       = 0.2;    % docking distance (m)
+dock_vel        = 0.02;   % docking velocity (m/s)
+
+num_runs = 20;            % Monte Carlo runs
+
+%% ===============================
+% FIGURE SETUP
+% ===============================
+figure;
+hold on;
+grid on;
+axis equal;
+xlabel('R-bar (m)');
+ylabel('V-bar (m)');
+zlabel('Cross-track (m)');
+title('Autonomous RPOD: 3D Monte Carlo Simulation');
+
+view(3);
+xlim([-80 30]);
+ylim([-140 30]);
+zlim([-40 40]);
+
+% Target
+plot3(0,0,0,'ro','MarkerSize',8,'MarkerFaceColor','r');
+
+% Docking point
+dock_point = [0 -1 0];
+plot3(dock_point(1),dock_point(2),dock_point(3),'go','MarkerSize',8,'MarkerFaceColor','g');
+
+% Keep-out zone
+[th,ph] = meshgrid(linspace(0,2*pi,30),linspace(0,pi,30));
+Xs = KOZ_radius*sin(ph).*cos(th);
+Ys = KOZ_radius*sin(ph).*sin(th);
+Zs = KOZ_radius*cos(ph);
+surf(Xs,Ys,Zs,'FaceAlpha',0.1,'EdgeColor','none','FaceColor','r');
+
+dock_count = 0;
+abort_count = 0;
+
+%% ===============================
+% MONTE CARLO LOOP
+% ===============================
+for run = 1:num_runs
+
+    % -------------------------------
+    % RANDOM INITIAL CONDITIONS
+    % -------------------------------
+    x  = -50 + 15*randn;
+    y  = -100 + 15*randn;
+    z  =  20 + 10*randn;
+
+    xd = 0.05*randn;
+    yd = 0.05*randn;
+    zd = 0.05*randn;
+
+    traj = animatedline('LineWidth',1.8,'Color','b');
+    abort_flag = false;
+    dock_flag  = false;
+
+    %% ===============================
+    % SIMULATION LOOP
+    % ===============================
+    for k = 1:N
+
+        dist = sqrt(x^2 + y^2 + z^2);
+        vel  = sqrt(xd^2 + yd^2 + zd^2);
+
+        % --- Guidance (PD Control) ---
+        ax = -Kp*(x - dock_point(1)) - Kd*xd;
+        ay = -Kp*(y - dock_point(2)) - Kd*yd;
+        az = -Kp*(z - dock_point(3)) - Kd*zd;
+
+        % --- Abort Logic ---
+        if (dist < 20) && (vel > abort_vel_limit)
+            abort_flag = true;
+        end
+
+        if abort_flag
+            ax = 0.002 * x;
+            ay = 0.002 * y;
+            az = 0.002 * z;
+            traj.Color = 'r';   % RED = abort
+        end
+
+        % --- CW Relative Dynamics ---
+        xdd =  3*n^2*x + 2*n*yd + ax;
+        ydd = -2*n*xd + ay;
+        zdd = -n^2*z + az;
+
+        % Integrate
+        xd = xd + xdd*dt;
+        yd = yd + ydd*dt;
+        zd = zd + zdd*dt;
+
+        x  = x  + xd*dt;
+        y  = y  + yd*dt;
+        z  = z  + zd*dt;
+
+        % --- Animate trajectory ---
+        addpoints(traj,x,y,z);
+        drawnow limitrate;
+
+        % --- Velocity arrows (every 25 steps) ---
+        if mod(k,25)==0
+            quiver3(x,y,z,xd,yd,zd,0,'k');
+        end
+
+        % --- Docking Check ---
+        if (dist < dock_dist) && (vel < dock_vel)
+            dock_flag = true;
+            traj.Color = 'g';   % GREEN = dock
+            break;
+        end
+    end
+
+    %% ===============================
+    % RUN RESULT
+    % ===============================
+    if dock_flag
+        dock_count = dock_count + 1;
+    elseif abort_flag
+        abort_count = abort_count + 1;
+    end
+
+end
+
+%% ===============================
+% FINAL RESULTS
+% ===============================
+fprintf('\nMonte Carlo Results:\n');
+fprintf('Docking Successes: %d / %d\n',dock_count,num_runs);
+fprintf('Abort Events     : %d / %d\n',abort_count,num_runs);
+fprintf('Success Rate     : %.2f %%\n',(dock_count/num_runs)*100);
